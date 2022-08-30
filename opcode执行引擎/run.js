@@ -176,7 +176,7 @@ const run = new Run([
     },
     {
         type: "mov",
-        param: ["edx", 0]
+        param: ["ecx", 0]
     },
     {
         type: "call",
@@ -185,12 +185,12 @@ const run = new Run([
     },
     {
         type: "add",
-        param: ["edx", 1]
+        param: ["ecx", 1]
     },
     {
         type: "jz",
         param: ["(a)=>a[0]<10", -3],
-        param2: ["this.edx"],
+        param2: ["this.ecx"],
     },
     {
         type: "display",
