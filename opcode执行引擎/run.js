@@ -14,6 +14,7 @@ class Run {
         this.stack = [];
         this.heap = {};
         this.fun = {};
+
         this.handler = {
             "exit": this.exit,
             "call": this.call,
@@ -44,7 +45,20 @@ class Run {
     }
 
     async jmp([offset]) {
-        this.eip += offset;
+        if ("string" == typeof offset) {
+            const idIndex = this.opCode.findIndex(item => item.id === offset);
+            if (-1 === idIndex) {
+                throw new Error("找不到跳转地方, offset is" +  offset);
+            }
+            offset = idIndex - this.eip - 1
+        }
+
+        if ("number" === typeof offset) {
+            this.eip += offset;
+        } else {
+            throw new Error("参数错误, offset is" + JSON.stringify(offset))
+        }
+
     }
 
     async jz([lambada, offset], paramArr) {
@@ -121,7 +135,7 @@ class Run {
             } catch (e) {
                 this.lastError = e;
                 console.log(this.lastError);
-                if (opCode.stop) {
+                if (!(opCode.stop === false)) {
                     this.forcedBreak = true;
                 }
                 if (opCode.errorHandler) {
@@ -149,7 +163,7 @@ class Inline {
             a,
             b,
             result: this.eax
-        }
+        };
     }
 
     static async _display(data) {
@@ -171,7 +185,7 @@ const run = new Run([
     {
         type: "call",
         param: ["_add"],
-        param2: [3, 5],
+        param2: [3, 6],
     },
     {
         type: "call",
@@ -180,7 +194,7 @@ const run = new Run([
     },
     {
         type: "jz",
-        param: ["(a)=>!!(a[0]%2)", 2],
+        param: ["(a)=>!!(a[0]%2)", "displayEven"],
         param2: ["this.eax"],
     },
     {
@@ -193,6 +207,7 @@ const run = new Run([
         param: [1],
     },
     {
+        id:"displayEven",
         type: "call",
         param: ["_display"],
         param2: ["`${this.eax}是奇数`"],
