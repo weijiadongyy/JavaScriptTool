@@ -46,17 +46,17 @@ class Run {
 
     async jmp([offset]) {
         if ("string" == typeof offset) {
-            const idIndex = this.opCode.findIndex(item => item.id === offset);
+            const idIndex = this.findIdIndex(offset)
             if (-1 === idIndex) {
-                throw new Error("找不到跳转地方, offset is" +  offset);
+                throw new Error("找不到跳转地方, offset is" + offset);
             }
-            offset = idIndex - this.eip - 1
+            offset = idIndex - this.eip - 1;
         }
 
         if ("number" === typeof offset) {
             this.eip += offset;
         } else {
-            throw new Error("参数错误, offset is" + JSON.stringify(offset))
+            throw new Error("参数错误, offset is" + JSON.stringify(offset));
         }
 
     }
@@ -92,6 +92,18 @@ class Run {
         }
     }
 
+    findIdIndex(id) {
+        if (!this.cache.idIndex) {
+            this.cache.idIndex = {};
+        }
+        if (this.cache.idIndex[id]) {
+            return this.cache.idIndex[id];
+        }
+        const index = this.opCode.findIndex(item => item.id === id);
+        this.cache.idIndex[id] = index;
+        return index;
+    }
+
     init() {
         this.eax = 0;
         this.ebx = 0;
@@ -100,9 +112,11 @@ class Run {
         this.eip = 0;
         this.stack = [];
         this.heap = {};
+        this.cache = {};
         this.forcedBreak = false;
         this.lastError = null;
         this.fun = {};
+        this.cache = {};
     }
 
     applyEvalParam(arr) {
@@ -207,7 +221,7 @@ const run = new Run([
         param: [1],
     },
     {
-        id:"displayEven",
+        id: "displayEven",
         type: "call",
         param: ["_display"],
         param2: ["`${this.eax}是奇数`"],
@@ -217,6 +231,7 @@ const run = new Run([
         param: ["ecx", 10]
     },
     {
+        id: "addStart",
         type: "call",
         param: ["_add"],
         param2: ["this.eax", 1],
@@ -227,7 +242,7 @@ const run = new Run([
     },
     {
         type: "jz",
-        param: ["(a=>a[0]>0)", -3],
+        param: ["(a=>a[0]>0)", "addStart"],
         param2: ["this.ecx"],
         stop: true
     },
