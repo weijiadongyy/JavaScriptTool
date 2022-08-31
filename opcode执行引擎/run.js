@@ -204,7 +204,7 @@ const run = new Run([
     {
         type: "call",
         param: ["_display"],
-        param2: ["答案是:`${this.eax}`"],
+        param2: ["`答案是:${this.eax}`"],
     },
     {
         type: "jz",
