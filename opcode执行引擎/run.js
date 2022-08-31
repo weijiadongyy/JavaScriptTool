@@ -12,6 +12,7 @@ class Run {
         this.lastError = null;
         this.forcedBreak = false;
         this.stack = [];
+        this.heap = {};
         this.fun = {};
         this.handler = {
             "exit": this.exit,
@@ -46,9 +47,9 @@ class Run {
         this.eip += offset;
     }
 
-    async jz([lamba, offset], paramArr) {
-        lamba = this.eval(lamba);
-        if (lamba(this.applyEvalParam(paramArr))) {
+    async jz([lambada, offset], paramArr) {
+        lambada = this.eval(lambada);
+        if (lambada(this.applyEvalParam(paramArr))) {
             await this.jmp([offset]);
         }
     }
@@ -65,7 +66,6 @@ class Run {
     }
 
 
-
     async exit() {
         this.forcedBreak = true;
     }
@@ -74,7 +74,7 @@ class Run {
         try {
             return eval(code);
         } catch (e) {
-            throw new Error("eval faild, your code is \n" + code + "\n error message is " + e.message);
+            throw new Error("eval failed, your code is \n" + code + "\n error message is " + e.message);
         }
     }
 
@@ -85,6 +85,7 @@ class Run {
         this.edx = 0;
         this.eip = 0;
         this.stack = [];
+        this.heap = {};
         this.forcedBreak = false;
         this.lastError = null;
         this.fun = {};
@@ -112,6 +113,7 @@ class Run {
 
     async run() {
         this.init();
+        // eslint-disable-next-line no-constant-condition
         while (1) {
             const opCode = this.getOneOpCode();
             try {
@@ -143,6 +145,11 @@ class Run {
 class Inline {
     static async _add(a, b) {
         this.eax = a + b;
+        this.heap._add = {
+            a,
+            b,
+            result: this.eax
+        }
     }
 
     static async _display(data) {
@@ -157,11 +164,9 @@ class Inline {
 const run = new Run([
     {
         type: "function",
-        param: ["my_fun", `(function () {
-                                return function (data) {
-                                    console.error("嘎嘎嘎嘎 " + this.eax);
-                                };
-                            })();`]
+        param: ["my_fun", `()=>{
+            console.log(this.stack, this.heap)
+        }`]
     },
     {
         type: "call",
