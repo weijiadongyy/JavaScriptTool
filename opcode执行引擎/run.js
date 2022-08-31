@@ -16,13 +16,12 @@ class Run {
         this.handler = {
             "exit": this.exit,
             "call": this.call,
-            "display": this.display,
             "jz": this.jz,
             "jmp": this.jmp,
             "add": this.add,
             "sub": this.sub,
             "mov": this.mov,
-            "function": this.setFun
+            "function": this.setFun,
         };
     }
 
@@ -65,9 +64,7 @@ class Run {
 
     }
 
-    async display([data]) {
-        console.log(this.eval(data));
-    }
+
 
     async exit() {
         this.forcedBreak = true;
@@ -75,9 +72,9 @@ class Run {
 
     eval(code) {
         try {
-            return eval(code)
+            return eval(code);
         } catch (e) {
-            throw new Error("eval faild, your code is \n" + code + "\n error message is " + e.message)
+            throw new Error("eval faild, your code is \n" + code + "\n error message is " + e.message);
         }
     }
 
@@ -125,8 +122,8 @@ class Run {
                 if (opCode.stop) {
                     this.forcedBreak = true;
                 }
-                if(opCode.errorHandler) {
-                    opCode.errorHandler.call(this, this.lastError)
+                if (opCode.errorHandler) {
+                    opCode.errorHandler.call(this, this.lastError);
                 }
             }
             this.eip += 1;
@@ -146,6 +143,10 @@ class Run {
 class Inline {
     static async _add(a, b) {
         this.eax = a + b;
+    }
+
+    static async _display(data) {
+        console.log(data);
     }
 
     constructor() {
@@ -168,8 +169,9 @@ const run = new Run([
         param2: [3, 5],
     },
     {
-        type: "display",
-        param: ["答案是:`${this.eax}`"],
+        type: "call",
+        param: ["_display"],
+        param2: ["答案是:`${this.eax}`"],
     },
     {
         type: "jz",
@@ -177,16 +179,18 @@ const run = new Run([
         param2: ["this.eax"],
     },
     {
-        type: "display",
-        param: ["`${this.eax}是偶数`"],
+        type: "call",
+        param: ["_display"],
+        param2: ["`${this.eax}是偶数`"],
     },
     {
         type: "jmp",
         param: [1],
     },
     {
-        type: "display",
-        param: ["`${this.eax}是奇数`"],
+        type: "call",
+        param: ["_display"],
+        param2: ["`${this.eax}是奇数`"],
     },
     {
         type: "mov",
@@ -208,8 +212,9 @@ const run = new Run([
         stop: true
     },
     {
-        type: "display",
-        param: ["`结果是${this.eax}`"],
+        type: "call",
+        param: ["_display"],
+        param2: ["`结果是${this.eax}`"],
     },
     {
         type: "call",
