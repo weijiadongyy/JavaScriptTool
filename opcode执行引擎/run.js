@@ -20,18 +20,23 @@ class Run {
             "jz": this.jz,
             "jmp": this.jmp,
             "add": this.add,
+            "sub": this.sub,
             "mov": this.mov,
             "function": this.setFun
         };
     }
 
     async setFun([key, value]) {
-        this.fun[key] = eval(value);
+        this.fun[key] = this.eval(value);
 
     }
 
     async add([key, value]) {
         this[key] += value;
+    }
+
+    async sub([key, value]) {
+        this[key] -= value;
     }
 
     async mov([key, value]) {
@@ -43,7 +48,7 @@ class Run {
     }
 
     async jz([lamba, offset], paramArr) {
-        lamba = eval(lamba);
+        lamba = this.eval(lamba);
         if (lamba(this.applyEvalParam(paramArr))) {
             await this.jmp([offset]);
         }
@@ -61,13 +66,20 @@ class Run {
     }
 
     async display([data]) {
-        console.log(eval(data));
+        console.log(this.eval(data));
     }
 
     async exit() {
         this.forcedBreak = true;
     }
 
+    eval(code) {
+        try {
+            return eval(code)
+        } catch (e) {
+            throw new Error("eval faild, your code is \n" + code + "\n error message is " + e.message)
+        }
+    }
 
     init() {
         this.eax = 0;
@@ -87,7 +99,7 @@ class Run {
         }
         return arr.map(item => {
             if ("string" === typeof item) {
-                return eval(item);
+                return this.eval(item);
             }
             return item;
         });
@@ -96,7 +108,7 @@ class Run {
     getOneOpCode() {
         const opCode = this.opCode[this.eip];
         if (!opCode) {
-            throw new Error("UnKonw Error");
+            throw new Error("无指令可取");
         }
         return opCode;
     }
@@ -105,7 +117,6 @@ class Run {
         this.init();
         while (1) {
             const opCode = this.getOneOpCode();
-            // console.log(opCode);
             try {
                 await this.handler[opCode.type].call(this, opCode.param, opCode.param2);
             } catch (e) {
@@ -114,9 +125,12 @@ class Run {
                 if (opCode.stop) {
                     this.forcedBreak = true;
                 }
+                if(opCode.errorHandler) {
+                    opCode.errorHandler.call(this, this.lastError)
+                }
             }
             this.eip += 1;
-            //强制结束
+
             if (this.forcedBreak) {
                 break;
             }
@@ -127,7 +141,7 @@ class Run {
 }
 
 /**
- *  内置函数
+ *  内置函数 如aes
  */
 class Inline {
     static async _add(a, b) {
@@ -160,7 +174,7 @@ const run = new Run([
     {
         type: "jz",
         param: ["(a)=>!!(a[0]%2)", 2],
-        param2: ["`${this.eax}`"],
+        param2: ["this.eax"],
     },
     {
         type: "display",
@@ -176,7 +190,7 @@ const run = new Run([
     },
     {
         type: "mov",
-        param: ["ecx", 0]
+        param: ["ecx", 10]
     },
     {
         type: "call",
@@ -184,13 +198,14 @@ const run = new Run([
         param2: ["this.eax", 1],
     },
     {
-        type: "add",
+        type: "sub",
         param: ["ecx", 1]
     },
     {
         type: "jz",
-        param: ["(a)=>a[0]<10", -3],
+        param: ["(a=>a[0]>0)", -3],
         param2: ["this.ecx"],
+        stop: true
     },
     {
         type: "display",
