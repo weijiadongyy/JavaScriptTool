@@ -1,9 +1,67 @@
+const fs = require("fs")
+class Channel {
+    static EVENT_NAME = {
+        "RUN": "RUN"
+    }
+    constructor(eventName) {
+        this.channel = require('diagnostic-channel').channel;
+        this.eventName = eventName;
+        this.cb = null;
+        this.resolve = null;
+    }
+
+    _read(event) {
+        if (!this.resolve) {
+            return event.data
+        }
+        const resolve = this.resolve
+        resolve(event.data)
+        this.resolve = null
+
+    }
+
+    publish(data) {
+        this.channel.publish(this.eventName, data)
+    }
+
+    subscribe(mycb) {
+        this.cb = (function (event) {
+            if (mycb) {
+                mycb(event)
+                return;
+            }
+            if (!this.resolve) {
+                return;
+            }
+            const resolve = this.resolve
+            resolve(event.data)
+            this.resolve = null
+        }).bind(this)
+        this.channel.subscribe(this.eventName, this.cb);
+    }
+
+    unsubscribe() {
+        // console.log(this.cb)
+        this.channel.unsubscribe(this.eventName, this.cb)
+    }
+
+    read() {
+        const self = this
+        return new Promise(resolve => {
+            self.resolve = resolve
+        })
+    }
+
+
+}
+
 /**
  *   执行引擎
  */
 class Run {
     constructor(opCode) {
         this.opCode = opCode;
+        fs.writeFileSync("./run.json", JSON.stringify(this.opCode))
         this.eip = 0;
         this.eax = 0;
         this.ebx = 0;
@@ -14,6 +72,8 @@ class Run {
         this.stack = [];
         this.heap = {};
         this.fun = {};
+
+        this.message = new Channel(Channel.EVENT_NAME.RUN)
 
         this.handler = {
             "exit": this.exit,
@@ -72,7 +132,7 @@ class Run {
         if (Inline[funName]) {
             await Inline[funName].apply(this, this.applyEvalParam(paramArr));
         } else if (this.fun[funName]) {
-            await this.fun[funName].apply(this, this.applyEvalParam(paramArr));
+            await (this.fun[funName]).apply(this, this.applyEvalParam(paramArr));
         } else {
             throw new Error("函数不存在");
         }
@@ -119,6 +179,24 @@ class Run {
         this.cache = {};
     }
 
+    loop(fn, t) {
+        const id = setInterval(fn, t)
+        if(!this.cache.interval) {
+            this.cache.interval = []
+        }
+        this.cache.interval.push(id)
+        return id
+    }
+
+    exitProcess() {
+        if(this.cache.interval) {
+            this.cache.interval.forEach(item=>{
+                clearInterval(item)
+            })
+        }
+        this.message.publish("exitProcess")
+    }
+
     applyEvalParam(arr) {
         if (!Array.isArray(arr)) {
             return arr;
@@ -139,7 +217,21 @@ class Run {
         return opCode;
     }
 
-    async run() {
+    run() {
+        return new Promise((resolve, reject) => {
+            this.message.subscribe((event)=>{
+                switch (event.data){
+                    case "exitProcess":
+                        this.init()
+                        reject("exitProcess")
+                }
+            })
+            this._run().then(()=>resolve()).catch(err=>reject(err))
+        })
+    }
+
+    async _run() {
+
         this.init();
         // eslint-disable-next-line no-constant-condition
         while (1) {
@@ -189,11 +281,14 @@ class Inline {
 }
 
 
+
 const run = new Run([
     {
         type: "function",
-        param: ["my_fun", `()=>{
-            console.log(this.stack, this.heap)
+        param: ["my_fun", `async ()=> {
+            this.loop(() => {
+                console.log(this.stack, this.heap);
+            },1000)
         }`]
     },
     {
@@ -261,4 +356,12 @@ const run = new Run([
     }
 ]);
 
-run.run();
+run.run().catch(e=>{
+    console.log(e);
+})
+
+setTimeout(function (){
+    run.exitProcess()
+},3100)
+
+
