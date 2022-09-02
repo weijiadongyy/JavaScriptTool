@@ -365,3 +365,39 @@ setTimeout(function (){
 },3100)
 
 
+/**
+ * 关于exitProcess
+ * 直接reject 无法结束正在执行的内部函数，如 a函数调用b函数，b函数await axios，然后做一些操作c
+ * 如果a直接reject确实执行引擎会被强制停止，但是b函数还是会继续执行。
+ * 之前只是针对setTimeout这种宏任务做了清理，如果要结束所有promise，则需要实现给promiese的参数加扩展
+ * 使得每个promise在获取到消息之后全部reject
+ * return new Promise((resolve, reject) => {}) 改成
+ * function promiseFn(resolve, reject) {}
+ * return new Promise(this.promiseFn.bind(this))
+ * 这样做是为了方便给函数加上注解来统一注入代码 比如
+ * function promise() {
+ *     return function decorator(target, name, descriptor) {
+ *         const value = descriptor?.value;
+ *         if ("function" !== typeof value) {
+ *             return;
+ *         }
+ *
+ *         async function overWriteValue(...args) {
+ *             console.log(`promise log:执行方法${name};参数为`, args);
+ *             setTimeout(() => {
+ *                 console.log(`promise log:准备结束方法${name}`);
+ *                 args[1]("走你")
+ *             }, 2000)
+ *
+ *             return await value.bind(this)(...args);
+ *         }
+ *
+ *         return {
+ *             ...descriptor,
+ *             value: overWriteValue
+ *         };
+ *     };
+ * }
+ *
+ * 为啥写到注释，是因为node原生并不支持注解，需要bable或者直接使用ts进行编译才能运行
+ */
